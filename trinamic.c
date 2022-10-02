@@ -591,7 +591,10 @@ static bool trinamic_driver_config (motor_map_t motor, uint8_t seq)
         ok = (stepper[motor.id] = TMC5160_AddMotor(motor, cfg.settings->current, cfg.settings->microsteps, cfg.settings->r_sense)) != NULL;
     #endif
 
-    if(!ok) {
+    if(!ok)
+    {
+        driver_enabled.mask &= ~bit(motor.axis);
+
         protocol_enqueue_rt_command(pos_failed);
     //    system_raise_alarm(Alarm_SelftestFailed);
         return false;
@@ -688,6 +691,7 @@ static void trinamic_drivers_init (axes_signals_t axes)
 
     memset(stepper, 0, sizeof(stepper));
 
+    // For SPI chained sequence (?)
     do {
         if(bit_istrue(axes.mask, bit(motor_map[--motor].axis)))
             seq++;
@@ -699,14 +703,9 @@ static void trinamic_drivers_init (axes_signals_t axes)
             if((ok = trinamic_driver_config(motor_map[motor], --seq)))
                 n_enabled++;
         }
-    } while(ok && motor);
+    } while(motor);
 
     tmc_motors_set(ok ? n_enabled : 0);
-
-    if(!ok) {
-        driver_enabled.mask = 0;
-        memset(stepper, 0, sizeof(stepper));
-    }
 }
 
 // Add warning info to next realtime report when warning flag set by drivers
